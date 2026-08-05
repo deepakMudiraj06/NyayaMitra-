@@ -1,10 +1,15 @@
 class PromptService:
     """
     Builds the prompt for the local LLM using
-    retrieved legal sections.
+    retrieved legal sections and conversation history.
     """
 
-    def build_prompt(self, question, retrieved_sections):
+    def build_prompt(
+        self,
+        question,
+        retrieved_sections,
+        history=None
+    ):
 
         context = ""
 
@@ -15,35 +20,61 @@ class PromptService:
                 f"Section: {section['section_number']}\n"
                 f"Title: {section['title']}\n\n"
                 f"{section['content']}\n"
-                f"{'-'*60}\n"
+                f"{'-'*80}\n"
             )
 
+        conversation = ""
+
+        if history:
+            for msg in history:
+                conversation += (
+                    f"{msg['role'].capitalize()}: "
+                    f"{msg['content']}\n"
+                )
+
         prompt = f"""
-You are NyayaMitra AI, an expert legal assistant specializing in Indian law.
+You are NyayaMitra AI.
 
-IMPORTANT RULES:
-1. Answer ONLY using the legal context provided.
-2. Do not make up laws or sections.
-3. If the answer is not available in the context, say:
-   "I couldn't find sufficient information in the uploaded legal documents."
-4. Mention the relevant Act and Section number whenever possible.
-5. Explain in simple, professional language.
+You are an expert legal assistant specializing in Indian law.
 
-==========================
-LEGAL CONTEXT
-==========================
+Use ONLY the legal context below.
+
+Never invent laws.
+
+If the answer is not available, reply:
+
+"I couldn't find sufficient information in the uploaded legal documents."
+
+---------------------------------
+
+Conversation History
+
+{conversation}
+
+---------------------------------
+
+Legal Context
 
 {context}
 
-==========================
-USER QUESTION
-==========================
+---------------------------------
+
+Current Question
 
 {question}
 
-==========================
-ANSWER
-==========================
+---------------------------------
+
+Answer in Markdown using:
+
+# Legal Summary
+
+## Relevant Law
+
+## Important Points
+
+## Conclusion
+
 """
 
         return prompt.strip()

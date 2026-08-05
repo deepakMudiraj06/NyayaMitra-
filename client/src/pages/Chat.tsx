@@ -7,16 +7,27 @@ import { useChat } from "../hooks/useChat";
 
 function Chat() {
   const {
+    conversations,
+    currentConversationId,
     messages,
     isTyping,
     handleSendMessage,
+    handleNewChat,
+    setCurrentConversationId,
   } = useChat();
 
   return (
     <div className="flex h-screen bg-white">
-      <ChatSidebar />
+
+      <ChatSidebar
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onSelectConversation={setCurrentConversationId}
+        onNewChat={handleNewChat}
+      />
 
       <div className="flex flex-1 flex-col">
+
         <ChatHeader />
 
         <ChatMessages
@@ -24,8 +35,12 @@ function Chat() {
           isTyping={isTyping}
         />
 
-        <ChatInput onSend={handleSendMessage} />
+        <ChatInput
+          onSend={handleSendMessage}
+        />
+
       </div>
+
     </div>
   );
 }

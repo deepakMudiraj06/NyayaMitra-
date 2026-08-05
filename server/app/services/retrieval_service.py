@@ -5,17 +5,16 @@ from app.services.reranker_service import RerankerService
 
 class RetrievalService:
     """
-    Handles semantic retrieval of legal sections using embeddings,
-    FAISS search, and CrossEncoder re-ranking.
+    Handles semantic retrieval of legal sections using
+    SentenceTransformer embeddings + FAISS + CrossEncoder reranking.
     """
 
     def __init__(self, embedder, vector_store, sections):
-
         self.embedder = embedder
         self.vector_store = vector_store
         self.sections = sections
 
-        # Load reranker once
+        # Load CrossEncoder once
         self.reranker = RerankerService()
 
     def retrieve(
@@ -24,15 +23,19 @@ class RetrievalService:
         k: int = 3
     ) -> List[Dict]:
 
-        # Convert question into embedding
+        # ------------------------------------------
+        # Create embedding for the user question
+        # ------------------------------------------
         query_embedding = self.embedder.create_embeddings(
             [question]
         )[0]
 
-        # Retrieve more candidates from FAISS
+        # ------------------------------------------
+        # Retrieve Top-10 candidates from FAISS
+        # ------------------------------------------
         distances, indices = self.vector_store.search(
             query_embedding,
-            10          # retrieve top 10 instead of top 3
+            10
         )
 
         retrieved_sections = []
@@ -44,11 +47,18 @@ class RetrievalService:
 
             section = self.sections[idx].copy()
 
+            # Store FAISS similarity score
             section["score"] = float(distance)
 
             retrieved_sections.append(section)
 
-        # Re-rank using CrossEncoder
+        # Nothing retrieved
+        if not retrieved_sections:
+            return []
+
+        # ------------------------------------------
+        # CrossEncoder Re-ranking
+        # ------------------------------------------
         reranked = self.reranker.rerank(
             question,
             retrieved_sections,

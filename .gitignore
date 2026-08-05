@@ -1,4 +1,20 @@
 # ==========================
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Database
+server/*.db
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
 # React
 # ==========================
 client/node_modules/
@@ -35,3 +51,4 @@ Thumbs.db
 # Logs
 # ==========================
 *.log
+
