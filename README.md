@@ -73,7 +73,9 @@ NyayaMitra/
 └── README.md
 ```
 
-Local `.env` files, virtual environments, `node_modules`, caches, and build output are intentionally excluded from this overview.
+The destination repository also contains its earlier root-level frontend files. The current application is under `client/` and `server/`; the older files are retained to preserve the destination history and existing project files.
+
+Local `.env` files, virtual environments, `node_modules`, caches, and build output are excluded from Git.
 
 ## Prerequisites
 
@@ -87,11 +89,11 @@ The backend dependency file includes the packages required by the current FastAP
 
 ## Clone or Open the Project
 
-To clone the existing repository:
+To clone the correct repository:
 
 ```powershell
-git clone https://github.com/deepakMudiraj06/NyayaMitra-Legal-AI.git
-cd NyayaMitra-Legal-AI
+git clone https://github.com/deepakMudiraj06/NyayaMitra-.git
+cd NyayaMitra-
 ```
 
 If the project is already present:
@@ -157,10 +159,10 @@ Create `server/.env` locally. Never commit this file:
 
 ```dotenv
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_MODEL=your_configured_model_name
 ```
 
-The backend resolves `server/.env` from the service file location and does not print the API key. `GEMINI_MODEL` is read from the environment for every `LLMService` initialization.
+The backend resolves `server/.env` from the service file location and does not print the API key. `GEMINI_MODEL` is required for every `LLMService` initialization.
 
 The root and server ignore rules exclude `.env` files. Treat API keys as secrets and do not paste them into source code, issues, logs, screenshots, or README files.
 
@@ -208,9 +210,11 @@ From `server`, with the virtual environment active:
 
 ```powershell
 python -m py_compile app\main.py app\models\chat_models.py app\routes\chat_routes.py app\routes\document_routes.py app\services\chat_service.py app\services\prompt_service.py app\services\llm_service.py
+python test_storage.py
+python test_retrieval.py
 ```
 
-The repository contains standalone exploratory scripts such as `test_storage.py`, `test_retrieval.py`, `test_indexing.py`, and `test_llm.py`. Inspect each script before running it. Some require local model files, modify or rebuild local indexes, prompt for input, or make a live Gemini request. The project does not currently define a pytest test suite.
+The repository contains standalone exploratory scripts such as `test_indexing.py` and `test_llm.py`. Inspect each script before running it. Some require local model files, modify or rebuild local indexes, prompt for input, or make a live Gemini request. The project does not currently define a pytest test suite.
 
 ## Troubleshooting
 

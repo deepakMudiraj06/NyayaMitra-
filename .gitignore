@@ -1,54 +1,42 @@
-# ==========================
-# Python
+# Python environments and caches
 venv/
-__pycache__/
-*.pyc
-
-# Database
-server/*.db
-
-# Environment
-.env
-.env.*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# React
-# ==========================
-client/node_modules/
-client/dist/
-
-# ==========================
-# Python
-# ==========================
 server/venv/
-server/__pycache__/
+__pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
 
-# ==========================
-# Environment
-# ==========================
-server/.env
+# Local databases and environment files
+*.db
+server/*.db
 .env
+.env.*
+server/.env
 
-# ==========================
-# IDE
-# ==========================
+# Frontend dependencies and build output
+node_modules/
+client/node_modules/
+dist/
+dist-ssr/
+client/dist/
+
+# Logs and local tooling
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.local
+
+# IDE and operating-system files
 .vscode/
 .idea/
-
-# ==========================
-# Operating System
-# ==========================
 .DS_Store
 Thumbs.db
-
-# ==========================
-# Logs
-# ==========================
-*.log
-
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
