@@ -1,112 +1,48 @@
 import re
 
-
 def split_into_sections(text):
     """
-    Splits legal documents into sections.
-
-    Features
-    --------
-    ✅ Removes Table of Contents
-    ✅ Removes duplicate sections
-    ✅ Preserves complete section text
-    ✅ Extracts section number
-    ✅ Extracts title
+    Split legal text into sections and store metadata.
     """
 
-    # -------------------------------------------------
-    # Clean line endings
-    # -------------------------------------------------
+    pattern = r'(?=\n\d+\.\s)'
 
-    text = text.replace("\r", "")
-
-    # -------------------------------------------------
-    # Remove everything before the real Act begins
-    #
-    # Your PDF starts with:
-    # ARRANGEMENT OF SECTIONS
-    #
-    # The actual Act begins much later with:
-    # CHAPTER I
-    # PRELIMINARY
-    # 1. Short title...
-    # -------------------------------------------------
-
-    start = re.search(
-        r"CHAPTER\s+I\s+PRELIMINARY",
-        text,
-        re.IGNORECASE | re.DOTALL
-    )
-
-    if start:
-        text = text[start.start():]
-
-    # -------------------------------------------------
-    # Find every section heading
-    # Example:
-    #
-    # 184. Driving dangerously....
-    #
-    # -------------------------------------------------
-
-    pattern = re.compile(
-        r"\n(\d+[A-Z]?)\.\s",
-        re.MULTILINE
-    )
-
-    matches = list(pattern.finditer(text))
+    raw_sections = re.split(pattern, text)
 
     sections = []
 
-    seen = set()
+    page = 1
 
-    # -------------------------------------------------
-    # Split using section boundaries
-    # -------------------------------------------------
+    for section in raw_sections:
 
-    for i, match in enumerate(matches):
+        section = section.strip()
 
-        start_index = match.start()
+        if len(section) < 50:
+            continue
 
-        if i + 1 < len(matches):
-            end_index = matches[i + 1].start()
+        match = re.match(r'(\d+[A-Z]?)\.\s*(.*)', section)
+
+        if match:
+            section_number = match.group(1)
+
+            lines = section.split("\n")
+
+            title = lines[0]
+
         else:
-            end_index = len(text)
-
-        chunk = text[start_index:end_index].strip()
-
-        if len(chunk) < 80:
-            continue
-
-        header = re.match(
-            r"(\d+[A-Z]?)\.\s*(.+)",
-            chunk
-        )
-
-        if not header:
-            continue
-
-        section_number = header.group(1)
-
-        # ---------------------------------------------
-        # Skip duplicates
-        # ---------------------------------------------
-
-        if section_number in seen:
-            continue
-
-        seen.add(section_number)
-
-        first_line = chunk.split("\n")[0].strip()
+            section_number = "Unknown"
+            title = "Unknown"
 
         sections.append(
             {
                 "section_number": section_number,
-                "title": first_line,
-                "page": None,
+                "title": title,
+                "page": page,
                 "act": "Motor Vehicles Act, 1988",
-                "content": chunk
+                "content": section
             }
         )
+
+        page += 1
 
     return sections

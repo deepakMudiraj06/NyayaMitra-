@@ -1,33 +1,25 @@
-export interface Message {
-  id: number;
+export type LanguageCode =
+  | "en-IN"
+  | "te-IN"
+  | "hi-IN"
+  | "kn-IN"
+  | "ta-IN";
 
-  role: "user" | "assistant";
+export type InputMethod = "text" | "voice";
 
-  content: string;
-
-  timestamp: Date;
-
-  citations?: Citation[];
-}
-
-export interface Citation {
+export type Citation = {
   act: string;
-
   section: string;
-
   title: string;
-
   page: number | null;
-
   content: string;
-}
+};
 
-export interface ChatResponse {
-  conversation_id: string;
-
-  question: string;
-
-  answer: string;
-
-  citations: Citation[];
-}
+export type Message = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+  isError?: boolean;
+  inputMethod?: InputMethod;
+};

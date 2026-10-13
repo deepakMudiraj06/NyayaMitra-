@@ -29,5 +29,4 @@ function UploadCard() {
     </div>
   );
 }
-
 export default UploadCard;

@@ -1,24 +1,36 @@
 import Hero from "../components/welcome/Hero";
-import UploadCard from "../components/welcome/UploadCard";
+import QuickActions from "../components/welcome/QuickActions";
+import TopicChips from "../components/welcome/TopicChips";
 
-function Welcome() {
 
+type WelcomeProps = {
+  onNewChat?: () => void;
+};
+
+function Welcome({
+  onNewChat = () => {},
+}: WelcomeProps) {
   return (
+    <div className="flex flex-1 bg-[#FAFAFA]">
 
-    <div className="min-h-screen bg-white">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center px-6 py-6">
 
-      <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-20">
-
+        {/* Hero */}
         <Hero />
 
-        <UploadCard />
+        {/* Quick Actions */}
+        <QuickActions
+          onNewChat={onNewChat}
+        />
+
+        {/* Explore Topics */}
+        <TopicChips />
+
 
       </div>
 
     </div>
-
   );
-
 }
 
 export default Welcome;

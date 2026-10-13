@@ -1,3 +1,4 @@
+
 import os
 import numpy as np
 
@@ -10,281 +11,107 @@ from app.services.document_registry import DocumentRegistry
 
 
 class IndexingService:
-    """
-    Builds and maintains the legal knowledge base.
-
-    Workflow
-    --------
-    Scan PDFs
-            ↓
-    Detect New / Modified PDFs
-            ↓
-    Extract Text
-            ↓
-    Split into Legal Sections
-            ↓
-    Generate Embeddings
-            ↓
-    Build FAISS Index
-            ↓
-    Save Knowledge Base
-    """
+    """Build the legal document FAISS knowledge base."""
 
     def __init__(self):
-
         self.documents_folder = "legal_documents"
-
         self.embedder = EmbeddingService()
-
         self.storage = StorageService()
-
         self.registry = DocumentRegistry()
 
-    # ----------------------------------------------------------
-
     def scan_documents(self):
-        """
-        Scan the legal_documents folder and
-        return all PDF paths.
-        """
+        """Return the paths of all legal PDF files."""
+        if not os.path.isdir(self.documents_folder):
+            os.makedirs(self.documents_folder, exist_ok=True)
 
-        pdf_files = []
-
-        if not os.path.exists(self.documents_folder):
-
-            print("Documents folder not found.")
-
-            return pdf_files
-
-        for file in os.listdir(self.documents_folder):
-
-            if file.lower().endswith(".pdf"):
-
-                pdf_files.append(
-                    os.path.join(
-                        self.documents_folder,
-                        file
-                    )
-                )
-
-        pdf_files.sort()
-
-        return pdf_files
-
-    # ----------------------------------------------------------
+        return sorted(
+            os.path.join(self.documents_folder, filename)
+            for filename in os.listdir(self.documents_folder)
+            if filename.lower().endswith(".pdf")
+        )
 
     def process_document(self, pdf_path):
-        """
-        Process one legal PDF.
-
-        Returns
-        -------
-        sections
-        embeddings
-        """
-
-        print(f"\nProcessing : {os.path.basename(pdf_path)}")
+        """Extract text, split it into sections, and embed them."""
+        print(f"Processing: {os.path.basename(pdf_path)}")
 
         text = extract_pdf_text(pdf_path)
-
         sections = split_into_sections(text)
 
-        print(f"Sections Found : {len(sections)}")
+        if not sections:
+            print(f"Warning: No legal sections found in {pdf_path}")
+            return [], np.empty((0, 0), dtype="float32")
 
-        texts = []
+        texts = [section["content"] for section in sections]
 
-        for section in sections:
+        embeddings = np.asarray(
+            self.embedder.create_embeddings(texts),
+            dtype="float32"
+        )
 
-            texts.append(
-                section["content"]
+        if embeddings.ndim != 2 or embeddings.shape[0] != len(sections):
+            raise ValueError(
+                f"Embedding count does not match sections in {pdf_path}"
             )
-
-        embeddings = self.embedder.create_embeddings(
-            texts
-        )
-
-        embeddings = embeddings.astype(
-            "float32"
-        )
-
-        print(
-            f"Embeddings Generated : {embeddings.shape[0]}"
-        )
 
         return sections, embeddings
 
-    # ----------------------------------------------------------
-
-    def build_vector_store(self, embeddings):
-        """
-        Build a fresh FAISS vector store
-        from all embeddings.
-        """
-
-        if len(embeddings) == 0:
-
-            return None
-
-        dimension = embeddings.shape[1]
-
-        vector_store = VectorStore(
-            dimension=dimension
-        )
-
-        vector_store.add_embeddings(
-            embeddings
-        )
-
-        print(
-            f"Vector Count : {vector_store.index.ntotal}"
-        )
-
-        return vector_store
-
-    # ----------------------------------------------------------
-    # build_index() continues in Part 2
-    # ----------------------------------------------------------
     def build_index(self):
         """
-        Build or update the complete legal knowledge base.
+        Rebuild the knowledge base from all PDFs.
+        This avoids retaining stale sections after a document is deleted
+        or modified.
         """
-
-        print("\n" + "=" * 60)
+        print("\n" + "=" * 50)
         print("Building Legal Knowledge Base")
-        print("=" * 60)
+        print("=" * 50)
 
         pdf_files = self.scan_documents()
 
-        if len(pdf_files) == 0:
-            print("No PDF documents found.")
+        if not pdf_files:
+            print("No PDF documents found. Nothing to index.")
             return
 
-        # ------------------------------------------
-        # Load existing knowledge base
-        # ------------------------------------------
-
-        _, existing_metadata, existing_embeddings = \
-            self.storage.load_knowledge_base()
-
-        if existing_metadata is None:
-            existing_metadata = []
-
-        if existing_embeddings is None:
-            existing_embeddings = np.empty(
-                (0, 384),
-                dtype="float32"
-            )
-
-        metadata = list(existing_metadata)
-
-        embeddings = existing_embeddings
-
-        processed_documents = 0
-        skipped_documents = 0
-
-        print(f"\nFound {len(pdf_files)} PDF(s).\n")
-
-        # ------------------------------------------
-        # Process only new / modified PDFs
-        # ------------------------------------------
+        all_sections = []
+        all_embeddings = []
 
         for pdf_path in pdf_files:
+            sections, embeddings = self.process_document(pdf_path)
 
-            file_name = os.path.basename(pdf_path)
-
-            if not self.registry.should_process(pdf_path):
-
-                print(f"Skipping : {file_name}")
-
-                skipped_documents += 1
-
+            if not sections:
                 continue
 
-            print(f"\nIndexing : {file_name}")
-
-            sections, new_embeddings = self.process_document(
-                pdf_path
-            )
-
-            metadata.extend(sections)
-
-            if embeddings.shape[0] == 0:
-
-                embeddings = new_embeddings
-
-            else:
-
-                embeddings = np.vstack(
-                    (
-                        embeddings,
-                        new_embeddings
-                    )
-                ).astype("float32")
+            all_sections.extend(sections)
+            all_embeddings.append(embeddings)
 
             self.registry.update_document(pdf_path)
 
-            processed_documents += 1
+            print(f"Indexed {len(sections)} sections.")
 
-            print(
-                f"Added {len(sections)} legal sections."
+        if not all_sections:
+            raise ValueError(
+                "No indexable legal sections were found. "
+                "The existing knowledge base was not replaced."
             )
 
-        # ------------------------------------------
-        # Nothing new
-        # ------------------------------------------
+        embeddings = np.vstack(all_embeddings).astype("float32")
 
-        if processed_documents == 0:
+        if len(all_sections) != embeddings.shape[0]:
+            raise ValueError(
+                "Section count and embedding count do not match."
+            )
 
-            print("\nKnowledge Base already up to date.")
-
-            return
-
-        # ------------------------------------------
-        # Build FAISS
-        # ------------------------------------------
-
-        print("\nBuilding FAISS Index...\n")
-
-        vector_store = self.build_vector_store(
-            embeddings
+        vector_store = VectorStore(
+            dimension=embeddings.shape[1]
         )
+        vector_store.add_embeddings(embeddings)
 
-        # ------------------------------------------
-        # Save Everything
-        # ------------------------------------------
-
+        # Your current StorageService accepts exactly two arguments.
         self.storage.save_knowledge_base(
             vector_store,
-            metadata,
-            embeddings
+            all_sections
         )
 
-        # ------------------------------------------
-        # Summary
-        # ------------------------------------------
-
-        print("\n" + "=" * 60)
-        print("Knowledge Base Updated Successfully")
-        print("=" * 60)
-
-        print(
-            f"Processed Documents : {processed_documents}"
-        )
-
-        print(
-            f"Skipped Documents   : {skipped_documents}"
-        )
-
-        print(
-            f"Total Legal Sections: {len(metadata)}"
-        )
-
-        print(
-            f"Total Embeddings    : {embeddings.shape[0]}"
-        )
-
-        print(
-            f"FAISS Vector Count  : {vector_store.index.ntotal}"
-        )
-
-        print("=" * 60)
+        print("\nKnowledge Base Updated Successfully!")
+        print(f"PDF files scanned: {len(pdf_files)}")
+        print(f"Legal sections indexed: {len(all_sections)}")
+        print(f"Embeddings stored: {embeddings.shape[0]}")

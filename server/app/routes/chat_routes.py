@@ -37,7 +37,8 @@ def chat(request: ChatRequest):
 
     return chatbot.chat(
         conversation_id=request.conversation_id,
-        question=request.question
+        question=request.question,
+        language=request.language,
     )
 
 

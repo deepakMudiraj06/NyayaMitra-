@@ -1,10 +1,15 @@
+import uuid
+
 from app.services.chat_service import ChatService
 
 chatbot = ChatService()
 
 question = input("Ask your legal question: ")
 
-response = chatbot.chat(question)
+response = chatbot.chat(
+    conversation_id=str(uuid.uuid4()),
+    question=question,
+)
 
 print("\n")
 print("=" * 80)

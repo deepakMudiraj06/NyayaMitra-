@@ -1,391 +1,84 @@
-import { useEffect, useMemo, useState } from "react";
-import { v4 as uuid } from "uuid";
 
-import type { Message } from "../types/chat";
-import type { Conversation } from "../types/conversation";
-
-import {
-  sendMessageToAI,
-  resetConversation,
-} from "../services/chatService";
-
-import {
-  loadConversations,
-  saveConversations,
-  loadActiveConversation,
-  saveActiveConversation,
-} from "../utils/storage";
-
-// ------------------------------------------------------------
-// Helper Functions
-// ------------------------------------------------------------
-
-const createWelcomeMessage = (): Message => ({
-  id: Date.now(),
-  role: "assistant",
-  content: "Hello! I'm NyayaMitra AI. How can I help you today?",
-  timestamp: new Date(),
-});
-
-const createConversation = (): Conversation => ({
-  id: uuid(),
-  title: "New Chat",
-  createdAt: new Date(),
-  messages: [createWelcomeMessage()],
-});
-
-// ------------------------------------------------------------
+import { useRef, useState } from "react";
+import type { InputMethod, LanguageCode, Message } from "../types/chat";
+import { sendMessageToAI } from "../services/chatService";
 
 export function useChat() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      role: "assistant",
+      content: "Hello! I'm NyayaMitra AI. How can I help you today?",
+      timestamp: new Date(),
+    },
+  ]);
 
-  // ---------------- Load Saved Conversations ----------------
+  // Keep the same conversation ID for every message in this chat.
+  const [conversationId] = useState(
+    () => crypto.randomUUID()
+  );
 
-  const storedConversations = loadConversations();
-
-  const initialConversation =
-    storedConversations.length > 0
-      ? storedConversations[0]
-      : createConversation();
-
-  const savedConversationId =
-    loadActiveConversation();
-
-  const initialConversationId =
-    savedConversationId &&
-    storedConversations.some(
-      (conversation) =>
-        conversation.id === savedConversationId
-    )
-      ? savedConversationId
-      : initialConversation.id;
-
-  // ---------------- State ----------------
-
-  const [conversations, setConversations] =
-    useState<Conversation[]>(
-      storedConversations.length > 0
-        ? storedConversations
-        : [initialConversation]
-    );
-
-  const [
-    currentConversationId,
-    setCurrentConversationId,
-  ] = useState(initialConversationId);
-
-  const [isTyping, setIsTyping] =
-    useState(false);
-
-  // ---------------- Current Conversation ----------------
-
-  const currentConversation = useMemo(() => {
-
-    return (
-      conversations.find(
-        (conversation) =>
-          conversation.id === currentConversationId
-      ) || conversations[0]
-
-    );
-
-  }, [conversations, currentConversationId]);
-
-  const messages =
-    currentConversation?.messages ?? [];
-
-  // ---------------- Save Conversations ----------------
-
-  useEffect(() => {
-
-    saveConversations(
-      conversations
-    );
-
-  }, [conversations]);
-
-  // ---------------- Save Active Conversation ----------------
-
-  useEffect(() => {
-
-    saveActiveConversation(
-      currentConversationId
-    );
-
-  }, [currentConversationId]);
-
-  // ------------------------------------------------------------
-  // Send Message
-  // ------------------------------------------------------------
+  const [isTyping, setIsTyping] = useState(false);
+  const isSendingRef = useRef(false);
 
   const handleSendMessage = async (
-    text: string
+    text: string,
+    language: LanguageCode = "en-IN",
+    inputMethod: InputMethod = "text",
   ) => {
+    const trimmedText = text.trim();
 
-    if (!text.trim()) return;
+    if (!trimmedText || isSendingRef.current) return;
+
+    isSendingRef.current = true;
 
     const userMessage: Message = {
-
       id: Date.now(),
-
       role: "user",
-
-      content: text,
-
+      content: trimmedText,
       timestamp: new Date(),
-
     };
 
-    // Add user message
-
-    setConversations((prev) =>
-      prev.map((conversation) => {
-
-        if (
-          conversation.id !== currentConversationId
-        ) {
-          return conversation;
-        }
-
-        return {
-
-          ...conversation,
-
-          title:
-            conversation.title === "New Chat"
-              ? text
-              : conversation.title,
-
-          messages: [
-            ...conversation.messages,
-            userMessage,
-          ],
-
-        };
-
-      })
-    );
-
+    setMessages((prev) => [...prev, userMessage]);
     setIsTyping(true);
 
     try {
-
-      const response =
-        await sendMessageToAI(
-          currentConversationId,
-          text
-        );
+      const aiReply = await sendMessageToAI(
+        trimmedText,
+        conversationId,
+        language,
+      );
 
       const aiMessage: Message = {
-
         id: Date.now() + 1,
-
         role: "assistant",
-
-        content: response.answer,
-
-        citations: response.citations,
-
+        content: aiReply,
         timestamp: new Date(),
-
+        inputMethod,
       };
 
-      setConversations((prev) =>
-        prev.map((conversation) => {
-
-          if (
-            conversation.id !== currentConversationId
-          ) {
-            return conversation;
-          }
-
-          return {
-
-            ...conversation,
-
-            messages: [
-              ...conversation.messages,
-              aiMessage,
-            ],
-
-          };
-
-        })
-      );
-
+      setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
-
-      console.error(error);
+      console.error("NyayaMitra chat error:", error);
 
       const errorMessage: Message = {
-
         id: Date.now() + 1,
-
         role: "assistant",
-
-        content:
-          "Sorry, something went wrong.",
-
+        content: "Sorry, something went wrong. Please try again.",
         timestamp: new Date(),
-
+        isError: true,
       };
 
-      setConversations((prev) =>
-        prev.map((conversation) => {
-
-          if (
-            conversation.id !== currentConversationId
-          ) {
-            return conversation;
-          }
-
-          return {
-
-            ...conversation,
-
-            messages: [
-              ...conversation.messages,
-              errorMessage,
-            ],
-
-          };
-
-        })
-      );
-
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
-
+      isSendingRef.current = false;
       setIsTyping(false);
-
     }
-
   };
-
-  // ------------------------------------------------------------
-  // New Chat
-  // ------------------------------------------------------------
-
-  const handleNewChat = () => {
-
-    const newConversation =
-      createConversation();
-
-    setConversations((prev) => [
-
-      newConversation,
-
-      ...prev,
-
-    ]);
-
-    setCurrentConversationId(
-      newConversation.id
-    );
-
-  };
-
-  // ------------------------------------------------------------
-  // Rename Conversation
-  // ------------------------------------------------------------
-
-  const renameConversation = (
-    id: string,
-    title: string
-  ) => {
-
-    setConversations((prev) =>
-      prev.map((conversation) =>
-
-        conversation.id === id
-          ? {
-              ...conversation,
-              title,
-            }
-          : conversation
-
-      )
-    );
-
-  };
-
-  // ------------------------------------------------------------
-  // Delete Conversation
-  // ------------------------------------------------------------
-
-  const deleteConversation = async (
-    id: string
-  ) => {
-
-    try {
-
-      await resetConversation(id);
-
-    } catch (error) {
-
-      console.error(error);
-
-    }
-
-    const remaining =
-      conversations.filter(
-        (conversation) =>
-          conversation.id !== id
-      );
-
-    if (remaining.length === 0) {
-
-      const newConversation =
-        createConversation();
-
-      setConversations([
-        newConversation,
-      ]);
-
-      setCurrentConversationId(
-        newConversation.id
-      );
-
-      return;
-
-    }
-
-    setConversations(
-      remaining
-    );
-
-    if (
-      currentConversationId === id
-    ) {
-
-      setCurrentConversationId(
-        remaining[0].id
-      );
-
-    }
-
-  };
-
-  // ------------------------------------------------------------
 
   return {
-
-    conversations,
-
-    currentConversationId,
-
     messages,
-
     isTyping,
-
     handleSendMessage,
-
-    handleNewChat,
-
-    setCurrentConversationId,
-
-    renameConversation,
-
-    deleteConversation,
-
   };
-
 }

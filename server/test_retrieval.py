@@ -4,7 +4,7 @@ from app.services.retrieval_service import RetrievalService
 
 # Load saved knowledge base
 storage = StorageService()
-vector_store, metadata, _ = storage.load_knowledge_base()
+vector_store, metadata = storage.load_knowledge_base()
 
 # Create embedder
 embedder = EmbeddingService()

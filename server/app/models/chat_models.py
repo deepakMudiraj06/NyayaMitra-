@@ -1,10 +1,19 @@
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel
+
+LanguageCode = Literal[
+    "en-IN",
+    "te-IN",
+    "hi-IN",
+    "kn-IN",
+    "ta-IN",
+]
 
 
 class ChatRequest(BaseModel):
     conversation_id: str
     question: str
+    language: LanguageCode = "en-IN"
 
 
 class Citation(BaseModel):

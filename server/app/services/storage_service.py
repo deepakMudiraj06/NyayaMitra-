@@ -1,8 +1,6 @@
 import os
 import json
-
 import faiss
-import numpy as np
 
 from app.services.vector_store import VectorStore
 
@@ -12,11 +10,6 @@ class StorageService:
     def __init__(self):
 
         self.storage_folder = "storage"
-
-        os.makedirs(
-            self.storage_folder,
-            exist_ok=True
-        )
 
         self.index_path = os.path.join(
             self.storage_folder,
@@ -28,13 +21,11 @@ class StorageService:
             "metadata.json"
         )
 
-        self.embeddings_path = os.path.join(
+        os.makedirs(
             self.storage_folder,
-            "embeddings.npy"
+            exist_ok=True
         )
 
-    # ------------------------------------
-    # FAISS
     # ------------------------------------
 
     def save_index(self, index):
@@ -46,6 +37,8 @@ class StorageService:
 
         print("✅ FAISS index saved.")
 
+    # ------------------------------------
+
     def load_index(self):
 
         if not os.path.exists(self.index_path):
@@ -55,8 +48,6 @@ class StorageService:
             self.index_path
         )
 
-    # ------------------------------------
-    # Metadata
     # ------------------------------------
 
     def save_metadata(self, metadata):
@@ -76,6 +67,8 @@ class StorageService:
 
         print("✅ Metadata saved.")
 
+    # ------------------------------------
+
     def load_metadata(self):
 
         if not os.path.exists(self.metadata_path):
@@ -90,29 +83,7 @@ class StorageService:
             return json.load(f)
 
     # ------------------------------------
-    # Embeddings
-    # ------------------------------------
-
-    def save_embeddings(self, embeddings):
-
-        np.save(
-            self.embeddings_path,
-            embeddings
-        )
-
-        print("✅ Embeddings saved.")
-
-    def load_embeddings(self):
-
-        if not os.path.exists(self.embeddings_path):
-            return None
-
-        return np.load(
-            self.embeddings_path
-        )
-
-    # ------------------------------------
-    # Complete Knowledge Base
+    # High-Level Knowledge Base Operations
     # ------------------------------------
 
     def load_knowledge_base(self):
@@ -121,23 +92,21 @@ class StorageService:
 
         metadata = self.load_metadata()
 
-        embeddings = self.load_embeddings()
-
         if faiss_index is None:
-
-            return None, metadata, embeddings
+            return None, metadata
 
         vector_store = VectorStore(
             index=faiss_index
         )
 
-        return vector_store, metadata, embeddings
+        return vector_store, metadata
+
+    # ------------------------------------
 
     def save_knowledge_base(
         self,
         vector_store,
-        metadata,
-        embeddings
+        metadata
     ):
 
         self.save_index(
@@ -146,8 +115,4 @@ class StorageService:
 
         self.save_metadata(
             metadata
-        )
-
-        self.save_embeddings(
-            embeddings
         )

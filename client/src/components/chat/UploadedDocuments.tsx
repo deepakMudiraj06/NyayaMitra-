@@ -23,26 +23,6 @@ function UploadedDocuments() {
   const [loading, setLoading] =
     useState(true);
 
-  useEffect(() => {
-    loadDocuments();
-
-    const refresh = () => {
-      loadDocuments();
-    };
-
-    window.addEventListener(
-      "documents-updated",
-      refresh
-    );
-
-    return () => {
-      window.removeEventListener(
-        "documents-updated",
-        refresh
-      );
-    };
-  }, []);
-
   async function loadDocuments() {
     try {
       setLoading(true);
@@ -63,6 +43,30 @@ function UploadedDocuments() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => {
+      void loadDocuments();
+    }, 0);
+
+    const refresh = () => {
+      void loadDocuments();
+    };
+
+    window.addEventListener(
+      "documents-updated",
+      refresh
+    );
+
+    return () => {
+      window.clearTimeout(initialLoad);
+
+      window.removeEventListener(
+        "documents-updated",
+        refresh
+      );
+    };
+  }, []);
 
   async function handleDelete(
     filename: string
